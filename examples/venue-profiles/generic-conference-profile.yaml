@@ -1,0 +1,70 @@
+# Venue profile template
+#
+# A venue profile is the ONE place venue-specific numbers and rules live.
+# Every skill in this template (gate-e-sweeps, ai-review) and the
+# venue-readiness checklist reads its parameters from a profile like this
+# one instead of hard-coding them. Copy this file to
+# `config/venue-profile.yaml` in your own project and fill in the values
+# for the venue you are actually targeting (a conference, a journal, a
+# funding-body report, a legal filing, an internal audit — anything with a
+# submission standard). This file ships as a TEMPLATE with placeholder
+# values; it does not describe any specific real venue.
+
+venue:
+  name: "Example Conference on Applied Research 2027"     # display name only
+  short_code: "EXAMPLE27"                                  # used in file/report names
+  target_track: "full papers"                              # track / subcommittee, if applicable
+
+format:
+  target_source_glob: "manuscript/sections/*.tex"          # or *.md, *.docx-exported-md, etc.
+  compile_command: "cd manuscript && latexmk main.tex"     # or a Pandoc/Word/HTML build step
+  template_name: "generic-conference-template"             # LaTeX class, Word template, etc.
+  citation_style: "author-date"                             # author-date | numeric | footnote
+
+length:
+  encouraged_word_count: 8000          # a soft target, not enforced by the checklist
+  hard_cap_word_count: 12000           # desk-reject / non-negotiable ceiling
+  counting_scope: "body text; captions and table text excluded"
+  # State explicitly which counting method is authoritative if the venue
+  # allows more than one (e.g. `texcount`, a stripped-markdown word count,
+  # a submission-system's own counter). Ambiguity here is a recurring
+  # source of false PASS/FAIL — name the one that governs.
+  authoritative_counting_method: "state your chosen method here"
+
+anonymization:
+  required: false               # true for double-blind venues
+  self_citation_policy: "n/a"   # e.g. "cite own prior work in third person"
+  identifying_strings_to_scrub: []   # author names, institution, project codename, etc.
+
+accessibility:
+  figure_alt_text_required: false
+  full_document_tagging_required: false
+  color_contrast_minimum: null
+
+artifact_and_reproducibility:
+  supplementary_package_required: false
+  data_availability_statement_required: false
+  code_availability_statement_required: false
+  reproduction_package_standard: "n/a — describe what 'reproduces cleanly' means for this venue"
+
+disclosure:
+  ai_assistance_disclosure_required: false
+  disclosure_placement: "n/a"   # e.g. "Acknowledgments" | "standalone section" | "footnote"
+
+ethics_and_review:
+  human_subjects_review_required: false
+  conflict_of_interest_statement_required: false
+
+# Free-form venue-specific banned/required constructions. The gate-e-sweeps
+# skill's Sweep 7 (banned constructions) and Sweep 4 (prohibited effect
+# verbs) read their word lists from here rather than a hard-coded list in
+# the skill file, so the skill stays usable outside any one venue's house
+# style. Leave these lists empty (or delete the keys) if your venue/field
+# has no such conventions — the sweep script must treat an empty list as
+# "nothing to check", never as an error.
+prose_rules:
+  banned_effect_verbs_hard_fail: []      # e.g. ["improves", "guarantees"]
+  banned_effect_verbs_review_tier: []    # e.g. ["enhances", "accelerates"]
+  banned_ornamental_phrases: []          # e.g. ["it is worth noting that"]
+  max_sentence_length_soft: 40
+  max_sentence_length_hard: 50
