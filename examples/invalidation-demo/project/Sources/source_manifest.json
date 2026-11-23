@@ -1,0 +1,4 @@
+[
+  {"slug": "smith-2020-sampling", "sha256": "aaaa", "citability": "peer_reviewed", "doi": "10.0000/example.1", "pub_year": "2020", "extracted_on": "2026-01-05", "extracted_size": "41200", "intake_notes": "clean extraction"},
+  {"slug": "lopez-2019-coding", "sha256": "bbbb", "citability": "peer_reviewed", "doi": "10.0000/example.2", "pub_year": "2019", "extracted_on": "2026-01-05", "extracted_size": "28800", "intake_notes": "clean extraction"}
+]

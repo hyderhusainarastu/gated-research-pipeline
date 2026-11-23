@@ -1,0 +1,4 @@
+# Only tools/prov/ needs a third-party package. Everything else is stdlib-only.
+# Pinned to a release that predates this change; not re-verified against the
+# package index from an offline build.
+rdflib==7.1.4

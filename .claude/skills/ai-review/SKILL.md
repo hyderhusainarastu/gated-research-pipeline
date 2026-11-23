@@ -1,6 +1,6 @@
 ---
 name: ai-review
-description: "Run the recurring AI-Review stage: a full-piece, analysis-only, exhaustive pre-submission audit on a draft that has already cleared the mechanical sweep battery and an adversarial review, before the work's owner reads it. Use once per round, per target piece, immediately before routing the draft to its owner."
+description: "Run the recurring AI-Review stage: a full-piece, analysis-only, exhaustive pre-submission audit of a draft that has cleared the mechanical sweeps and an adversarial review, before its owner reads it. Use once per round per target piece."
 ---
 
 # AI-Review Stage

@@ -1,60 +1,98 @@
 # Invalidation engine
 
-`invalidation.py` is a small dependency-invalidation engine: a directed
-graph of `Source -> Evidence -> Claim -> Use` (plus an `Approval` node
-type for anything requiring an owner's sign-off), a fixed vocabulary of
-change events, and a deterministic dispatch table that marks every
-downstream-dependent node `STALE` when an upstream node changes.
+`invalidation.py` is a dependency-invalidation engine for evidence-grounded
+writing projects. It keeps a directed graph of
+`Source -> Quotation -> Claim -> ManuscriptUse` (plus `Ratification` nodes
+for anything that needs an owner's sign-off), detects what changed in your
+ledgers, and marks every downstream record that the change could have
+affected as `STALE`, with a reason. Records the change cannot reach stay
+`FRESH`, so you re-verify only what you must.
 
-## Why a project needs this
+Standard library only. Deterministic. Tested on Python 3.14.
 
-Once you have an evidence ledger and a claim ledger of any real size, you
-cannot re-verify everything by hand every round. The invalidation engine
-lets you re-verify only what a specific change could have affected: if a
-source's extracted text is corrected, every piece of evidence drawn from
-it, every claim resting on that evidence, and every passage in the work
-citing that claim is marked `STALE` — and nothing else is, so you are not
-re-checking records a change could not possibly have touched.
+## What is here
 
-## What's here
+- `invalidation.py`: the graph model, the event dispatch table, change
+  detection by content hash, the `engine_status` state machine (`FRESH`,
+  `STALE`, `CHECKING`, `ERROR`, ...), one-time schema migrations (each takes
+  a backup and aborts if the file changed underneath it), the
+  `logs/invalidation_events.csv` writer that `tools/prov/export.py` reads,
+  and a CLI.
+- `tests/test_live_engine.py`: 36 unit tests, run against temporary
+  directories only.
+- `../../examples/invalidation-demo/`: an invented two-source project and
+  `run_demo.sh`, which runs the CLI end to end offline.
 
-- `invalidation.py` — the engine itself: `Graph`/`Node`/`Edge`, the event
-  vocabulary (`EVENT_KINDS`), `compute_affected_set` (the dispatch
-  table), `propagate_stale`, content-hash-based change detection
-  (`compute_content_hash`, `detect_row_events`), and a CSV event-log
-  writer (`append_invalidation_events`) that `tools/prov/export.py`
-  consumes.
-- `tests/test_engine.py` — a full test suite (17 cases) against the graph
-  model, the dispatch table, and staleness propagation, runnable with
-  stdlib `unittest` alone.
+## Ledger layout it expects
 
-## What you need to wire up
+The engine reads these paths relative to the project root (two directories
+above `tools/invalidation/`). They are constants near the top of
+`invalidation.py`; change them to match your project.
 
-`load_live_graph(root)` in `invalidation.py` is a stub. Replace it with
-real reads of your own source manifest, evidence ledger, and claim
-ledger, building one `Node` per row and one `Edge` per dependency. Once
-that's wired, run `detect_row_events` against a prior-vs-current snapshot
-of each ledger, feed the resulting `ChangeEvent`s to `propagate_stale`,
-and append the results to your event log with
-`append_invalidation_events`. Everything else in the module — the graph,
-the dispatch table, the propagation algorithm — works unmodified.
+| File | Key column | Role |
+| --- | --- | --- |
+| `research/quote_ledger.csv` | `quote_id` | one row per quotation (`exact_quote`, `slug`, `citable_status`, ...) |
+| `research/claim_ledger.csv` | `claim_id` | one row per claim (`claim_text`, `quote_id`, `slug`, ...) |
+| `Sources/source_manifest.json` | `slug` | one entry per source; a list, or a dict keyed by slug |
+| `Sources/source_manifest.csv` | `slug` | the same manifest as CSV |
 
-## A worked example, by hand
+A claim's `quote_id` may hold several ids separated by `;`.
+
+## CLI
+
+```
+python3 tools/invalidation/invalidation.py migrate-schema --apply   # once: add content_hash and engine_status columns
+python3 tools/invalidation/invalidation.py check --since <git-ref>  # report what became STALE since a commit
+python3 tools/invalidation/invalidation.py check --against <dir>    # same, against a snapshot directory
+python3 tools/invalidation/invalidation.py check --against <dir> --apply   # also write STALE into the ledgers and log the firing
+python3 tools/invalidation/invalidation.py mark-stale --node-id c-002 --reason "re-read the source"
+python3 tools/invalidation/invalidation.py report
+```
+
+Without `--apply`, `check` and the migrations only report; they do not write.
+Every migration backs up the file first (`logs/pre_schema_v2/`,
+`logs/pre_schema_v3/`) and refuses to run on a CSV with ragged rows.
+
+## Worked example
+
+`examples/invalidation-demo/run_demo.sh` copies the engine and a toy project
+to a temp directory, snapshots the ledgers, changes the wording of one
+quotation, and runs `check`:
+
+```
+$ bash examples/invalidation-demo/run_demo.sh
+== check: what does that edit make STALE?
+{
+  ...
+  "n_quote_triggers": 1,
+  "n_transitioned_to_stale": 2,
+  "stale_nodes": {
+    "q-002": "row_edit on quotation q-002 (fields: exact_quote)",
+    "c-002": "upstream change: row_edit on quotation q-002 (fields: exact_quote)"
+  },
+  ...
+}
+```
+
+The edited quotation and the one claim that rests on it go `STALE`. The other
+two quotations and two claims are untouched.
+
+From Python:
 
 ```python
-from invalidation import Graph, Node, Edge, ChangeEvent, propagate_stale
-
-g = Graph()
-g.add_node(Node(id="source-1", type="Source"))
-g.add_node(Node(id="evidence-1", type="Evidence"))
-g.add_node(Node(id="claim-1", type="Claim"))
-g.add_edge(Edge(src="evidence-1", dst="source-1", type="wasDrawnFrom"))
-g.add_edge(Edge(src="claim-1", dst="evidence-1", type="supports"))
-
-# A source gets re-extracted with corrected text:
-event = ChangeEvent(kind="source_reextracted", node_id="source-1", node_type="Source")
-propagate_stale(g, [event])
-
-g.nodes["evidence-1"].engine_status  # -> "STALE"
-g.nodes["claim-1"].engine_status     # -> "STALE", transitively
+from invalidation import load_live_graph
+graph, report = load_live_graph()
+print(report.to_dict())
 ```
+
+## Limits
+
+- The ledger column names above are a fixed convention. A project with a
+  different schema has to change the field lists (`QUOTE_CONTENT_HASH_FIELDS`
+  and the others near the top of the module) or map its ledgers to these
+  names.
+- Some comments cite "section N.M" of the original design notes. Those notes
+  are not in this repository; the behaviour is covered by the tests.
+- The original engine also had a parity test against a separate research
+  prototype. That test depended on files outside this repository and is not
+  included.

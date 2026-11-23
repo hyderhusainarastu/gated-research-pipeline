@@ -1,0 +1,4 @@
+claim_id,claim_text,quote_id,slug,citable_status,claim_verification_status,claim_verification_method,claim_verification_date,claim_verification_notes,limits,locus,printed_page,proposed_use
+c-001,The study sampled three sites.,q-001,smith-2020-sampling,peer_reviewed,VERIFIED,manual,2026-01-12,,,methods,4,intro
+c-002,Participation declined over time.,q-002,smith-2020-sampling,peer_reviewed,VERIFIED,manual,2026-01-12,,,results,9,discussion
+c-003,Coding used two independent raters.,q-003,lopez-2019-coding,peer_reviewed,VERIFIED,manual,2026-01-12,,,methods,6,methods
